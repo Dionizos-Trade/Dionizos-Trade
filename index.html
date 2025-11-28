@@ -80,6 +80,63 @@
       margin-bottom: 6px;
     }
 
+    .tools-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.btn-collapse {
+  border: none;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 14px;
+  cursor: pointer;
+  background: #e5e7eb;
+  color: #111827;
+}
+
+/* ===== LEWY PANEL ZWINIĘTY ===== */
+body.tools-collapsed main {
+  grid-template-columns: 60px 1fr 300px; /* wąska kolumna z lewej */
+}
+
+/* sam panel węższy */
+body.tools-collapsed .tools-panel {
+  padding: 12px 6px;
+}
+
+/* w zwiniętym ukryj wszystkie teksty i formularz,
+   zostaw tylko kolorowe „ikony” z palety */
+body.tools-collapsed .tools-panel-header h2,
+body.tools-collapsed .tool-hint,
+body.tools-collapsed .tools-small,
+body.tools-collapsed .palette-details,
+body.tools-collapsed .new-type-form {
+  display: none;
+}
+
+/* paleta w trybie zwiniętym – same kolorowe kwadraty */
+body.tools-collapsed .palette {
+  gap: 10px;
+}
+
+body.tools-collapsed .palette-item {
+  justify-content: center;
+  padding: 6px;
+}
+
+body.tools-collapsed .palette-item-left div:last-child, /* tekst nazwy */
+body.tools-collapsed .palette-delete {                  /* przycisk x */
+  display: none;
+}
+
+/* przycisk zmienia się na "⟩" gdy panel zwinięty */
+body.tools-collapsed .btn-collapse {
+  padding: 4px 6px;
+}
+
     .palette-item {
       display: flex;
       align-items: center;
@@ -245,6 +302,7 @@
       overflow: auto;
       position: relative;
       cursor: grab;
+      max-height: 70vh; /* ogranicza widoczną wysokość mapy w oknie */
     }
 
     .canvas-wrapper:active {
@@ -737,9 +795,12 @@
 
 <main>
   <!-- LEWY PANEL -->
-  <aside class="tools-panel">
+<aside class="tools-panel">
+  <div class="tools-panel-header">
     <h2>Elementy magazynu</h2>
-    <div class="tool-hint">Przeciągnij element na mapę po prawej, aby go dodać.</div>
+    <button type="button" id="toggleToolsPanel" class="btn-collapse">⟨</button>
+  </div>
+  <div class="tool-hint">Przeciągnij element na mapę po prawej, aby go dodać.</div>
 
     <div class="palette" id="palette">
       <div class="palette-item" draggable="true" data-type="regał">
@@ -779,8 +840,12 @@
       </div>
     </div>
 
+<div class="palette-details" id="paletteDetails">
+Kliknij element powyżej, aby zobaczyć jego rozmiar i liczbę półek.
+</div>
+
     <div class="tools-small">
-      💡 Mapa: 3000×2000 px.<br/>
+      💡 Mapa: 3000×1200 px.<br/>
       – przesuwaj ją, chwytając tło,<br/>
       – elementy przeciągasz myszką,<br/>
       – produkty przypisujesz po prawej.
@@ -916,7 +981,7 @@ Możesz:
     </div>
 
     <div class="hint">
-      📌 Pozycje X / Y są w pikselach od lewego górnego rogu mapy (3000×2000 px).<br/>
+      📌 Pozycje X / Y są w pikselach od lewego górnego rogu mapy (3000×1200 px).<br/>
       📌 Liczba półek zapisywana jest w stanie i działa przy eksporcie / imporcie.
     </div>
   </aside>
@@ -935,6 +1000,7 @@ const MISSING_REPORT_API = "https://script.google.com/macros/s/AKfycbwtumaJ4uHgx
   const detailsBody = document.getElementById("detailsBody");
   const selectedLabel = document.getElementById("selectedLabel");
   const palette = document.getElementById("palette");
+  const toggleToolsPanelBtn = document.getElementById("toggleToolsPanel");
   const btnDeleteSelected = document.getElementById("btnDeleteSelected");
   const btnUndo = document.getElementById("btnUndo");
   const btnRedo = document.getElementById("btnRedo");
@@ -1010,9 +1076,10 @@ const MISSING_REPORT_API = "https://script.google.com/macros/s/AKfycbwtumaJ4uHgx
 
   // Zoom
   let currentZoom = 1;
-  const MIN_ZOOM = 0.4;
-  const MAX_ZOOM = 2.5;
-  const ZOOM_STEP = 0.1;
+  // Allow zooming out further (smaller map) and finer steps
+  const MIN_ZOOM = 0.25;   /* 10% */
+  const MAX_ZOOM = 2.0;
+  const ZOOM_STEP = 0.05;  /* 5% steps for smoother zoom */
 
   function applyZoom() {
     canvas.style.transform = `scale(${currentZoom})`;
@@ -1035,6 +1102,18 @@ const MISSING_REPORT_API = "https://script.google.com/macros/s/AKfycbwtumaJ4uHgx
   zoomInBtn.addEventListener("click", zoomIn);
   zoomOutBtn.addEventListener("click", zoomOut);
   zoomResetBtn.addEventListener("click", zoomReset);
+
+  // ===== ZWIJANIE / ROZWIJANIE LEWEGO PANELU =====
+if (toggleToolsPanelBtn) {
+  toggleToolsPanelBtn.addEventListener("click", () => {
+    document.body.classList.toggle("tools-collapsed");
+    // zmiana strzałki w przycisku
+    toggleToolsPanelBtn.textContent = document.body.classList.contains("tools-collapsed")
+      ? "⟩"
+      : "⟨";
+  });
+}
+
 
   canvasWrapper.addEventListener("wheel", (e) => {
     if (!e.ctrlKey) return;
@@ -1304,35 +1383,18 @@ const MISSING_REPORT_API = "https://script.google.com/macros/s/AKfycbwtumaJ4uHgx
 
     selectedLabel.textContent = `Wybrano: ${id}`;
 
-    let shelvesText = "  – brak (lokalizacja bez półek)";
+    let shelvesText = "– brak (lokalizacja bez półek)";
     if (shelvesCount > 0) {
-      shelvesText = `  – ${shelvesCount} półek (górna półka może służyć jako nadwyżki)`;
+      shelvesText = `${shelvesCount} półek (górna półka może służyć jako nadwyżki)`;
     }
 
     const text =
-`TYP
-  ${defaultsForType(type).labelSub} (${type})
-
-ID
-  ${id}
-
-POZYCJA NA MAPIE
-  X: ${x} px
-  Y: ${y} px
-
-ROZMIAR
-  szerokość:  ${w} px
-  wysokość:   ${h} px
-
-KOLOR
-  ${color}
+`ROZMIAR
+  szerokość: ${w} px
+  wysokość:  ${h} px
 
 PÓŁKI
-${shelvesText}
-
-OPIS
-  Ten element możesz przesuwać na mapie.
-  Do tej lokalizacji możesz przypisać produkty (SKU + nazwa + ilość lokalna, opcjonalnie półka) w panelu poniżej.`;
+  ${shelvesText}`;
 
     detailsBody.textContent = text;
   }
