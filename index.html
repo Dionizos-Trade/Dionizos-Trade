@@ -1,0 +1,1972 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mapa magazynu – kreator układu z produktami (regały z półkami)</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f3f4f6;
+      color: #111827;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    header {
+      padding: 16px 24px;
+      background: #111827;
+      color: #f9fafb;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    header span {
+      font-size: 13px;
+      opacity: 0.8;
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 260px 1fr 500px;
+      gap: 12px;
+      padding: 12px;
+      min-height: calc(100vh - 60px);
+    }
+
+    /* LEWY PANEL – PALETA */
+    .tools-panel {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 13px;
+      min-width: 0;
+    }
+
+    .tools-panel h2 {
+      margin: 0 0 4px;
+      font-size: 15px;
+    }
+
+    .tool-hint {
+      font-size: 11px;
+      color: #6b7280;
+      margin-bottom: 6px;
+    }
+
+    .palette {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .palette-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      background: #f3f4f6;
+      cursor: grab;
+      font-size: 12px;
+      user-select: none;
+    }
+
+    .palette-item-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .palette-item-type {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .palette-delete {
+      border: none;
+      border-radius: 999px;
+      padding: 0 6px;
+      font-size: 12px;
+      cursor: pointer;
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .t-regal       { background: #2563eb; }
+    .t-stanowisko  { background: #a855f7; }
+    .t-paleta      { background: #f59e0b; }
+    .t-korytarz    { background: #4ade80; }
+    .t-sciana      { background: #111827; }
+
+    .tools-small {
+      margin-top: 4px;
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    .divider {
+      height: 1px;
+      background: #e5e7eb;
+      margin: 6px 0;
+    }
+
+    .new-type-form {
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .new-type-form label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .new-type-form span {
+      font-size: 11px;
+      color: #4b5563;
+    }
+
+    .new-type-form input[type="text"],
+    .new-type-form input[type="number"] {
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      padding: 4px 6px;
+      font-size: 12px;
+    }
+
+    .new-type-form input[type="color"] {
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      padding: 0;
+      width: 40px;
+      height: 22px;
+    }
+
+    .new-type-form button {
+      margin-top: 4px;
+      border: none;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      background: #111827;
+      color: #f9fafb;
+      align-self: flex-start;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* MAPA */
+    .map-container {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 8px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .map-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      padding: 4px 4px 8px;
+      gap: 8px;
+    }
+
+    .map-header h2 {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .map-header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .map-info {
+      font-size: 11px;
+      color: #6b7280;
+      text-align: right;
+    }
+
+    .zoom-controls {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+    }
+
+    .zoom-controls button {
+      border: none;
+      border-radius: 999px;
+      padding: 2px 6px;
+      font-size: 11px;
+      cursor: pointer;
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .canvas-wrapper {
+      flex: 1;
+      border-radius: 10px;
+      border: 1px solid #e5e7eb;
+      background: #e5e7eb;
+      overflow: auto;
+      position: relative;
+      cursor: grab;
+    }
+
+    .canvas-wrapper:active {
+      cursor: grabbing;
+    }
+
+    .canvas {
+      position: relative;
+      width: 3000px;
+      height: 2000px;
+      background-image: linear-gradient(#e5e7eb 1px, transparent 1px),
+                        linear-gradient(90deg, #e5e7eb 1px, transparent 1px);
+      background-size: 40px 40px;
+      background-color: #f9fafb;
+      transform-origin: top left;
+    }
+
+    .canvas-border {
+      position: absolute;
+      inset: 0;
+      border: 2px dashed rgba(148, 163, 184, 0.8);
+      pointer-events: none;
+    }
+
+    /* ELEMENTY NA MAPIE */
+    .map-item {
+      position: absolute;
+      border-radius: 8px;
+      color: #f9fafb;
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.3);
+      cursor: move;
+      user-select: none;
+      padding: 2px 4px;
+      transition: box-shadow 0.12s ease, outline 0.12s ease;
+    }
+
+    .map-item span {
+      pointer-events: none;
+    }
+
+    .map-item.selected {
+      outline: 2px solid #22c55e;
+    }
+
+    .map-item.search-hit {
+      box-shadow: 0 0 0 3px #f97316, 0 0 18px rgba(249, 115, 22, 0.9);
+      outline: 2px solid #f97316;
+    }
+
+    .item-label-main {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .item-label-sub {
+      font-size: 10px;
+      opacity: 0.85;
+    }
+
+    /* PRAWY PANEL */
+    .details-container {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 13px;
+      min-width: 0;
+    }
+
+    .details-header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .details-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .details-header h2 {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .details-header span {
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    .btn-small {
+      border: none;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      background: #e5e7eb;
+      color: #111827;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .btn-small.danger {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .search-bar {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 2px;
+    }
+
+    .search-bar input {
+      flex: 1;
+      border-radius: 999px;
+      border: 1px solid #e5e7eb;
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+
+    .search-bar button {
+      border: none;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      background: #111827;
+      color: #f9fafb;
+      white-space: nowrap;
+    }
+
+.search-results {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+  background: #fef3c7;           /* jasny żółty */
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin-top: 4px;
+  margin-bottom: 8px;
+  border: 1px solid #facc15;
+}
+
+    .details-body {
+      font-size: 13px;
+      background: #f9fafb;
+      border-radius: 10px;
+      padding: 10px;
+      border: 1px solid #e5e7eb;
+      min-height: 80px;
+      white-space: pre-line;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    /* PANEL PRODUKTÓW W LOKALIZACJI */
+    .products-panel {
+      margin-top: 4px;
+      background: #f9fafb;
+      border-radius: 10px;
+      border: 1px solid #e5e7eb;
+      padding: 8px;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .products-header {
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .products-form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .products-form input,
+    .products-form select {
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      padding: 4px 6px;
+      font-size: 12px;
+    }
+
+    .products-form input#prodSku {
+      width: 80px;
+    }
+
+    .products-form select#prodShelf {
+      width: 120px;
+    }
+
+    .products-form input#prodQtyLoc {
+      width: 90px;
+    }
+
+    .products-form input#prodName {
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .products-form button {
+      border: none;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      background: #111827;
+      color: #f9fafb;
+      white-space: nowrap;
+    }
+
+    .products-list {
+      max-height: 130px;
+      overflow-y: auto;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      background: #ffffff;
+    }
+
+    .product-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 4px 6px;
+      font-size: 12px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .product-row:last-child {
+      border-bottom: none;
+    }
+
+    .product-main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .product-sku {
+      font-weight: 600;
+  font-size: 14px;
+    }
+
+    .product-name {
+      color: #4b5563;
+  font-size: 14px;
+    }
+
+    .product-qty {
+      font-size: 14px;
+      color: #111827;
+    }
+
+    .product-shelf {
+      font-size: 12px;
+  font-weight: 700;
+      color: #0f766e;
+    }
+
+/* kolumna z przyciskami: Zgłoś brak / Usuń */
+.product-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.product-row button.report {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+    .product-row button {
+      border: none;
+      border-radius: 999px;
+      padding: 2px 6px;
+      font-size: 10px;
+      cursor: pointer;
+      background: #fee2e2;
+      color: #b91c1c;
+      white-space: nowrap;
+    }
+
+    .products-hint {
+      font-size: 1px;
+      color: #6b7280;
+    }
+
+    /* PANEL WSZYSTKICH TOWARÓW */
+    .all-products-panel {
+      margin-top: 4px;
+      background: #f9fafb;
+      border-radius: 10px;
+      border: 1px solid #e5e7eb;
+      padding: 8px;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .all-products-header {
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .all-products-form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .all-products-form input {
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      padding: 4px 6px;
+      font-size: 12px;
+    }
+
+    #globalSku { width: 80px; }
+    #globalQty { width: 70px; }
+    #globalName { flex: 1; min-width: 120px; }
+
+    .all-products-form button {
+      border: none;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      background: #111827;
+      color: #f9fafb;
+      white-space: nowrap;
+    }
+
+    .all-products-search {
+      display: flex;
+      margin-top: 4px;
+    }
+
+    .all-products-search input {
+      flex: 1;
+      border-radius: 999px;
+      border: 1px solid #e5e7eb;
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+
+    .all-products-list {
+      max-height: 150px;
+      overflow-y: auto;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      background: #ffffff;
+    }
+
+    .all-product-row {
+      padding: 4px 6px;
+      font-size: 11px;
+      border-bottom: 1px solid #f3f4f6;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .all-product-row:last-child {
+      border-bottom: none;
+    }
+
+    .all-product-main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .all-product-sku {
+      font-weight: 600;
+    }
+
+    .all-product-name {
+      color: #4b5563;
+    }
+
+    .all-product-qty-input {
+      width: 70px;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      padding: 2px 4px;
+      font-size: 11px;
+    }
+
+    .all-product-delete {
+      border: none;
+      border-radius: 999px;
+      padding: 2px 6px;
+      font-size: 10px;
+      cursor: pointer;
+      background: #fee2e2;
+      color: #b91c1c;
+      white-space: nowrap;
+    }
+
+    /* PANEL HISTORII / ZAPISU */
+    .history-panel {
+      margin-top: 4px;
+      background: #f9fafb;
+      border-radius: 10px;
+      border: 1px solid #e5e7eb;
+      padding: 8px;
+      font-size: 11px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .history-panel button,
+    .history-panel label {
+      border: none;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      background: #e5e7eb;
+      color: #111827;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    .footer {
+      padding: 6px 16px 10px;
+      font-size: 10px;
+      color: #6b7280;
+      text-align: right;
+    }
+
+    @media (max-width: 1200px) {
+      main {
+        grid-template-columns: 220px 1fr;
+        grid-template-rows: minmax(0, 1fr) auto;
+      }
+      .details-container {
+        grid-column: 1 / -1;
+        margin-top: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Mapa magazynu – kreator układu</h1>
+    <span>Regały z półkami, lokalizacje towarów na półkach, ogólna lista produktów.</span>
+  </div>
+  <span>Wersja 4.2 – półki na regałach</span>
+</header>
+
+<main>
+  <!-- LEWY PANEL -->
+  <aside class="tools-panel">
+    <h2>Elementy magazynu</h2>
+    <div class="tool-hint">Przeciągnij element na mapę po prawej, aby go dodać.</div>
+
+    <div class="palette" id="palette">
+      <div class="palette-item" draggable="true" data-type="regał">
+        <div class="palette-item-left">
+          <div class="palette-item-type t-regal"></div>
+          <div>Regał</div>
+        </div>
+        <button class="palette-delete" title="Usuń typ z palety">×</button>
+      </div>
+      <div class="palette-item" draggable="true" data-type="stanowisko">
+        <div class="palette-item-left">
+          <div class="palette-item-type t-stanowisko"></div>
+          <div>Stanowisko pakowania</div>
+        </div>
+        <button class="palette-delete" title="Usuń typ z palety">×</button>
+      </div>
+      <div class="palette-item" draggable="true" data-type="paleta">
+        <div class="palette-item-left">
+          <div class="palette-item-type t-paleta"></div>
+          <div>Paleta / miejsce paletowe</div>
+        </div>
+        <button class="palette-delete" title="Usuń typ z palety">×</button>
+      </div>
+      <div class="palette-item" draggable="true" data-type="korytarz">
+        <div class="palette-item-left">
+          <div class="palette-item-type t-korytarz"></div>
+          <div>Korytarz</div>
+        </div>
+        <button class="palette-delete" title="Usuń typ z palety">×</button>
+      </div>
+      <div class="palette-item" draggable="true" data-type="sciana">
+        <div class="palette-item-left">
+          <div class="palette-item-type t-sciana"></div>
+          <div>Ściana / przegroda</div>
+        </div>
+        <button class="palette-delete" title="Usuń typ z palety">×</button>
+      </div>
+    </div>
+
+    <div class="tools-small">
+      💡 Mapa: 3000×2000 px.<br/>
+      – przesuwaj ją, chwytając tło,<br/>
+      – elementy przeciągasz myszką,<br/>
+      – produkty przypisujesz po prawej.
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="new-type-form">
+      <strong>Dodaj nowy typ elementu</strong>
+      <label>
+        <span>Klucz typu (bez spacji, np. strefaA):</span>
+        <input type="text" id="newTypeKey" placeholder="np. strefaA">
+      </label>
+      <label>
+        <span>Nazwa wyświetlana / ID prefix:</span>
+        <input type="text" id="newTypeName" placeholder="np. STREFA A">
+      </label>
+      <label>
+        <span>Rozmiar (szerokość x wysokość w px):</span>
+        <div style="display:flex;gap:4px;">
+          <input type="number" id="newTypeWidth" placeholder="120" style="width:60px;">
+          <input type="number" id="newTypeHeight" placeholder="60" style="width:60px;">
+        </div>
+      </label>
+      <label>
+        <span>Kolor:</span>
+        <input type="color" id="newTypeColor" value="#374151">
+      </label>
+      <label>
+        <span>Liczba półek (opcjonalnie, dla regałów):</span>
+        <input type="number" id="newTypeShelves" placeholder="np. 4" min="0" style="width:80px;">
+      </label>
+      <button id="btnAddType">➕ Dodaj typ do palety</button>
+      <div class="tools-small">
+        • Dla typów-regałów możesz podać liczbę półek (np. 4).<br/>
+        • Przy dodawaniu produktów do lokalizacji wybierzesz wtedy konkretną półkę.
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAPA -->
+  <section class="map-container">
+    <div class="map-header">
+      <h2>Mapa magazynu</h2>
+      <div class="map-header-right">
+        <div class="zoom-controls">
+          <button id="zoomOut">−</button>
+          <span id="zoomLevelLabel">100%</span>
+          <button id="zoomIn">+</button>
+          <button id="zoomReset">⟳</button>
+        </div>
+        <div class="map-info">
+          Regały, palety, stanowiska, korytarze, ściany – odwzorowane 1:1, z produktami.
+        </div>
+      </div>
+    </div>
+    <div class="canvas-wrapper" id="canvasWrapper">
+      <div class="canvas" id="canvas">
+        <div class="canvas-border"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRAWY PANEL -->
+  <aside class="details-container">
+    <div class="details-header-top">
+      <div class="details-header">
+        <h2>Szczegóły elementu</h2>
+        <span id="selectedLabel">Brak wybranego elementu</span>
+      </div>
+      <button id="btnDeleteSelected" class="btn-small danger">🗑 Usuń</button>
+    </div>
+
+    <div class="search-bar">
+      <input id="searchInput" placeholder="Szukaj po SKU lub nazwie produktu..." />
+      <button id="btnSearch">🔍 Szukaj</button>
+    </div>
+    <div id="searchResults" class="search-results"></div>
+
+    <div class="details-body" id="detailsBody">
+Kliknij element na mapie, aby zobaczyć szczegóły.
+
+Możesz:
+  • przeciągać elementy z palety na mapę,
+  • przesuwać elementy po mapie,
+  • usuwać zaznaczony element (przycisk lub klawisz Delete).
+    </div>
+
+    <div class="products-panel">
+      <div class="products-header">
+        <span>Produkty w tej lokalizacji</span>
+      </div>
+      <div class="products-form">
+        <input id="prodSku" placeholder="SKU" />
+        <input id="prodName" placeholder="Nazwa produktu" />
+        <select id="prodShelf" style="display:none;"></select>
+        <input id="prodQtyLoc" type="number" min="0" step="1" placeholder="Ilość lokalna" />
+        <button id="btnAddProduct">➕ Dodaj</button>
+      </div>
+      <div class="products-list" id="productsList"></div>
+      <div class="products-hint">
+        • Ilość dotyczy tej konkretnej lokalizacji (tego regału / palety).<br/>
+        • Jeśli lokalizacja ma półki – wybierz numer półki przed dodaniem produktu (górna może być „nadwyżki”).
+      </div>
+    </div>
+
+    <div class="all-products-panel">
+      <div class="all-products-header">
+        <span>Lista wszystkich towarów (ogólne ilości)</span>
+      </div>
+      <div class="all-products-form">
+        <input id="globalSku" placeholder="SKU" />
+        <input id="globalName" placeholder="Nazwa produktu" />
+        <input id="globalQty" type="number" min="0" step="1" placeholder="Ilość ogólna" />
+        <button id="btnAddGlobal">➕ Dodaj / nadpisz</button>
+      </div>
+      <div class="all-products-search">
+        <input id="globalSearch" placeholder="Filtruj po SKU / nazwie..." />
+      </div>
+      <div class="all-products-list" id="allProductsList"></div>
+      <div class="products-hint">
+        • Każdy produkt (SKU) pojawia się tutaj tylko raz – z ilością ogólną w magazynie (ustawiasz ręcznie).<br/>
+        • Lokalne ilości z mapy NIE są sumowane automatycznie do tej tabeli.
+      </div>
+    </div>
+
+    <div class="history-panel">
+      <button id="btnUndo">⏪ Cofnij</button>
+      <button id="btnRedo">⏩ Przywróć</button>
+      <button id="btnDownload">💾 Zapisz układ do pliku</button>
+      <label for="fileInput">📂 Wczytaj układ z pliku</label>
+      <input type="file" id="fileInput" accept="application/json">
+    </div>
+
+    <div class="hint">
+      📌 Pozycje X / Y są w pikselach od lewego górnego rogu mapy (3000×2000 px).<br/>
+      📌 Liczba półek zapisywana jest w stanie i działa przy eksporcie / imporcie.
+    </div>
+  </aside>
+</main>
+
+<div class="footer">
+  Kreator magazynu – mapa + produkty (lokalne) + półki na regałach + globalna lista towarów.
+</div>
+
+<script>
+
+// API do automatycznego zgłaszania braków (Google Apps Script Web App)
+const MISSING_REPORT_API = "https://script.google.com/macros/s/AKfycbwtumaJ4uHgx97R2Nxn8mK4bPJLoogJj1KXF-oerD3nhbtLUYeCw3qH9wp3E7YR3i46CQ/exec"; // <-- wklej swój URL
+  const canvasWrapper = document.getElementById("canvasWrapper");
+  const canvas = document.getElementById("canvas");
+  const detailsBody = document.getElementById("detailsBody");
+  const selectedLabel = document.getElementById("selectedLabel");
+  const palette = document.getElementById("palette");
+  const btnDeleteSelected = document.getElementById("btnDeleteSelected");
+  const btnUndo = document.getElementById("btnUndo");
+  const btnRedo = document.getElementById("btnRedo");
+  const btnDownload = document.getElementById("btnDownload");
+  const fileInput = document.getElementById("fileInput");
+
+  const searchInput = document.getElementById("searchInput");
+  const btnSearch = document.getElementById("btnSearch");
+  const searchResultsEl = document.getElementById("searchResults");
+
+  const prodSkuInput = document.getElementById("prodSku");
+  const prodNameInput = document.getElementById("prodName");
+  const prodQtyLocInput = document.getElementById("prodQtyLoc");
+  const prodShelfSelect = document.getElementById("prodShelf");
+  const btnAddProduct = document.getElementById("btnAddProduct");
+  const productsListEl = document.getElementById("productsList");
+
+  const allProductsListEl = document.getElementById("allProductsList");
+  const globalSkuInput = document.getElementById("globalSku");
+  const globalNameInput = document.getElementById("globalName");
+  const globalQtyInput = document.getElementById("globalQty");
+  const btnAddGlobal = document.getElementById("btnAddGlobal");
+  const globalSearchInput = document.getElementById("globalSearch");
+
+  const newTypeKeyInput = document.getElementById("newTypeKey");
+  const newTypeNameInput = document.getElementById("newTypeName");
+  const newTypeWidthInput = document.getElementById("newTypeWidth");
+  const newTypeHeightInput = document.getElementById("newTypeHeight");
+  const newTypeColorInput = document.getElementById("newTypeColor");
+  const newTypeShelvesInput = document.getElementById("newTypeShelves");
+  const btnAddType = document.getElementById("btnAddType");
+
+  const zoomInBtn = document.getElementById("zoomIn");
+  const zoomOutBtn = document.getElementById("zoomOut");
+  const zoomResetBtn = document.getElementById("zoomReset");
+  const zoomLevelLabel = document.getElementById("zoomLevelLabel");
+
+  // Typy
+  const typeDefs = {
+    "regał":      { labelSub: "Regał magazynowy",      width: 140, height: 60,  color: "#2563eb", shelvesCount: 0 },
+    "stanowisko": { labelSub: "Stanowisko pakowania",  width: 160, height: 70,  color: "#a855f7", shelvesCount: 0 },
+    "paleta":     { labelSub: "Paleta / miejsce paletowe", width: 80, height: 80, color: "#f59e0b", shelvesCount: 0 },
+    "korytarz":   { labelSub: "Korytarz / droga transportowa", width: 220, height: 40, color: "#4ade80", shelvesCount: 0 },
+    "sciana":     { labelSub: "Ściana / przegroda",    width: 260, height: 24,  color: "#111827", shelvesCount: 0 }
+  };
+
+  const counters = {
+    "regał": 1,
+    "stanowisko": 1,
+    "paleta": 1,
+    "korytarz": 1,
+    "sciana": 1,
+    "custom": 1
+  };
+
+  // Lokalizacje -> produkty (ilość lokalna + półka)
+  const productsByLocation = {}; // {locationId: [{sku,name,qty,shelf}]}
+
+  // Globalna lista produktów (osobna, ręcznie ustawiana)
+  const globalProducts = {}; // key -> {key, sku, name, totalQty}
+
+  // Historia (undo/redo)
+  const historyStack = [];
+  const redoStack = [];
+
+  let draggedPaletteType = null;
+  let isPanning = false;
+  let panStart = { x: 0, y: 0, scrollLeft: 0, scrollTop: 0 };
+  let draggingItem = null;
+  let dragOffset = { x: 0, y: 0 };
+  let movedOnCurrentDrag = false;
+  let selectedItem = null;
+
+  // Zoom
+  let currentZoom = 1;
+  const MIN_ZOOM = 0.4;
+  const MAX_ZOOM = 2.5;
+  const ZOOM_STEP = 0.1;
+
+  function applyZoom() {
+    canvas.style.transform = `scale(${currentZoom})`;
+    zoomLevelLabel.textContent = `${Math.round(currentZoom * 100)}%`;
+  }
+
+  function zoomIn() {
+    currentZoom = Math.min(MAX_ZOOM, currentZoom + ZOOM_STEP);
+    applyZoom();
+  }
+  function zoomOut() {
+    currentZoom = Math.max(MIN_ZOOM, currentZoom - ZOOM_STEP);
+    applyZoom();
+  }
+  function zoomReset() {
+    currentZoom = 1;
+    applyZoom();
+  }
+
+  zoomInBtn.addEventListener("click", zoomIn);
+  zoomOutBtn.addEventListener("click", zoomOut);
+  zoomResetBtn.addEventListener("click", zoomReset);
+
+  canvasWrapper.addEventListener("wheel", (e) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    if (e.deltaY < 0) zoomIn();
+    else zoomOut();
+  }, { passive: false });
+
+  /* PALETA type drag + usuwanie typu */
+  function attachPaletteDragAndDelete(el) {
+    el.addEventListener("dragstart", (e) => {
+      draggedPaletteType = el.dataset.type;
+      e.dataTransfer.effectAllowed = "copy";
+    });
+    el.addEventListener("dragend", () => {
+      draggedPaletteType = null;
+    });
+
+    const delBtn = el.querySelector(".palette-delete");
+    if (delBtn) {
+      delBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const type = el.dataset.type;
+        if (!confirm(`Usunąć typ „${type}” z palety? (elementy na mapie zostaną)`)) return;
+        el.remove();
+      });
+    }
+  }
+
+  document.querySelectorAll(".palette-item").forEach(attachPaletteDragAndDelete);
+
+  /* DODANIE WŁASNEGO TYPU */
+  btnAddType.addEventListener("click", () => {
+    const keyRaw = (newTypeKeyInput.value || "").trim();
+    const key = keyRaw.replace(/\s+/g, "_");
+    const name = (newTypeNameInput.value || "").trim() || key.toUpperCase();
+    const width = parseInt(newTypeWidthInput.value, 10) || 120;
+    const height = parseInt(newTypeHeightInput.value, 10) || 60;
+    const color = newTypeColorInput.value || "#374151";
+    const shelvesCount = parseInt(newTypeShelvesInput.value, 10) || 0;
+
+    if (!key) {
+      alert("Podaj klucz typu (bez spacji).");
+      return;
+    }
+    if (typeDefs[key]) {
+      alert("Taki typ już istnieje. Zmień klucz lub edytuj go w kodzie.");
+      return;
+    }
+
+    typeDefs[key] = { labelSub: name, width, height, color, shelvesCount };
+    counters[key] = 1;
+
+    const item = document.createElement("div");
+    item.classList.add("palette-item");
+    item.draggable = true;
+    item.dataset.type = key;
+
+    const left = document.createElement("div");
+    left.classList.add("palette-item-left");
+
+    const colorBox = document.createElement("div");
+    colorBox.classList.add("palette-item-type");
+    colorBox.style.backgroundColor = color;
+
+    const label = document.createElement("div");
+    label.textContent = shelvesCount > 0 ? `${name} (${shelvesCount} półek)` : name;
+
+    left.appendChild(colorBox);
+    left.appendChild(label);
+
+    const delBtn = document.createElement("button");
+    delBtn.classList.add("palette-delete");
+    delBtn.textContent = "×";
+    delBtn.title = "Usuń typ z palety";
+
+    item.appendChild(left);
+    item.appendChild(delBtn);
+
+    palette.appendChild(item);
+    attachPaletteDragAndDelete(item);
+
+    newTypeKeyInput.value = "";
+    newTypeNameInput.value = "";
+    newTypeWidthInput.value = "";
+    newTypeHeightInput.value = "";
+    newTypeShelvesInput.value = "";
+  });
+
+  /* DROP NA MAPIE */
+  canvas.addEventListener("dragover", (e) => {
+    if (!draggedPaletteType) return;
+    e.preventDefault();
+  });
+
+  canvas.addEventListener("drop", (e) => {
+    if (!draggedPaletteType) return;
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / currentZoom;
+    const y = (e.clientY - rect.top) / currentZoom;
+    createMapItem(draggedPaletteType, x, y);
+    draggedPaletteType = null;
+    saveState();
+  });
+
+  /* PANNING MAPY */
+  canvasWrapper.addEventListener("mousedown", (e) => {
+    if (e.target !== canvas && !e.target.classList.contains("canvas-border")) return;
+    isPanning = true;
+    panStart = {
+      x: e.clientX,
+      y: e.clientY,
+      scrollLeft: canvasWrapper.scrollLeft,
+      scrollTop: canvasWrapper.scrollTop
+    };
+  });
+
+  window.addEventListener("mousemove", (e) => {
+    if (isPanning) {
+      const dx = e.clientX - panStart.x;
+      const dy = e.clientY - panStart.y;
+      canvasWrapper.scrollLeft = panStart.scrollLeft - dx;
+      canvasWrapper.scrollTop = panStart.scrollTop - dy;
+    }
+    if (draggingItem) {
+      const canvasRect = canvas.getBoundingClientRect();
+      const pointerX = (e.clientX - canvasRect.left) / currentZoom;
+      const pointerY = (e.clientY - canvasRect.top) / currentZoom;
+      let x = pointerX - dragOffset.x;
+      let y = pointerY - dragOffset.y;
+      x = Math.max(0, Math.min(x, canvas.offsetWidth - draggingItem.offsetWidth));
+      y = Math.max(0, Math.min(y, canvas.offsetHeight - draggingItem.offsetHeight));
+      draggingItem.style.left = x + "px";
+      draggingItem.style.top = y + "px";
+      movedOnCurrentDrag = true;
+      updateDetailsFromItem(draggingItem);
+    }
+  });
+
+  window.addEventListener("mouseup", () => {
+    if (draggingItem && movedOnCurrentDrag) {
+      saveState();
+    }
+    isPanning = false;
+    draggingItem = null;
+    movedOnCurrentDrag = false;
+  });
+
+  /* TYP DOMYŚLNY */
+  function defaultsForType(type) {
+    return typeDefs[type] || { labelSub: "Element", width: 120, height: 60, color: "#374151", shelvesCount: 0 };
+  }
+
+  /* TWORZENIE ELEMENTU NA MAPIE */
+  function createMapItem(type, x, y, opts = {}) {
+    const defs = defaultsForType(type);
+    const numFromId = opts.id ? parseInt((opts.id.match(/(\d+)$/) || [0, 0])[1], 10) : null;
+    const counterKey = counters.hasOwnProperty(type) ? type : "custom";
+
+    if (!isNaN(numFromId) && numFromId >= counters[counterKey]) {
+      counters[counterKey] = numFromId + 1;
+    }
+
+    const displayName = defs.labelSub;
+    const id = opts.id || `${displayName} ${counters[counterKey]++}`;
+
+    const labelSub = opts.labelSub || defs.labelSub;
+    const width = opts.width || defs.width;
+    const height = opts.height || defs.height;
+    const color = opts.color || defs.color;
+    const shelvesCount = typeof opts.shelvesCount === "number"
+      ? opts.shelvesCount
+      : (typeof defs.shelvesCount === "number" ? defs.shelvesCount : 0);
+
+    const div = document.createElement("div");
+    div.classList.add("map-item");
+    div.dataset.type = type;
+    div.dataset.id = id;
+    div.dataset.labelSub = labelSub;
+    div.dataset.color = color;
+    div.dataset.shelvesCount = String(shelvesCount || 0);
+
+    div.style.left = x + "px";
+    div.style.top = y + "px";
+    div.style.width = width + "px";
+    div.style.height = height + "px";
+    div.style.backgroundColor = color;
+
+    if (type === "korytarz") {
+      div.style.color = "#065f46";
+      div.style.fontWeight = "600";
+    }
+
+    const labelMain = document.createElement("div");
+    labelMain.classList.add("item-label-main");
+    labelMain.textContent = id;
+
+    const labelSubEl = document.createElement("div");
+    labelSubEl.classList.add("item-label-sub");
+    labelSubEl.textContent = shelvesCount > 0
+      ? `${labelSub} (${shelvesCount} półek)`
+      : labelSub;
+
+    div.appendChild(labelMain);
+    div.appendChild(labelSubEl);
+
+    canvas.appendChild(div);
+
+    if (opts.products && Array.isArray(opts.products)) {
+      productsByLocation[id] = opts.products;
+    } else if (!productsByLocation[id]) {
+      productsByLocation[id] = [];
+    }
+
+    div.addEventListener("mousedown", (e) => {
+      e.stopPropagation();
+      setSelected(div);
+      draggingItem = div;
+      movedOnCurrentDrag = false;
+
+      const canvasRect = canvas.getBoundingClientRect();
+      const clickX = (e.clientX - canvasRect.left) / currentZoom;
+      const clickY = (e.clientY - canvasRect.top) / currentZoom;
+      const elemX = parseFloat(div.style.left) || 0;
+      const elemY = parseFloat(div.style.top) || 0;
+      dragOffset.x = clickX - elemX;
+      dragOffset.y = clickY - elemY;
+    });
+
+    div.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setSelected(div);
+    });
+
+    return div;
+  }
+
+  function setSelected(el) {
+    document.querySelectorAll(".map-item").forEach(i => i.classList.remove("selected"));
+    if (!el) {
+      selectedItem = null;
+      selectedLabel.textContent = "Brak wybranego elementu";
+      detailsBody.textContent =
+"Kliknij element na mapie, aby zobaczyć szczegóły.\n\nMożesz usuwać elementy przyciskiem „Usuń” lub klawiszem Delete.";
+      renderProductsList(null);
+      refreshShelfSelect();
+      return;
+    }
+    el.classList.add("selected");
+    selectedItem = el;
+    updateDetailsFromItem(el);
+    renderProductsList(el.dataset.id);
+    refreshShelfSelect();
+  }
+
+  function updateDetailsFromItem(el) {
+    const type = el.dataset.type;
+    const id = el.dataset.id;
+    const x = Math.round(parseFloat(el.style.left || "0"));
+    const y = Math.round(parseFloat(el.style.top || "0"));
+    const w = Math.round(parseFloat(el.style.width || "0"));
+    const h = Math.round(parseFloat(el.style.height || "0"));
+    const color = el.dataset.color || "#000000";
+    const shelvesCount = parseInt(el.dataset.shelvesCount || "0", 10) || 0;
+
+    selectedLabel.textContent = `Wybrano: ${id}`;
+
+    let shelvesText = "  – brak (lokalizacja bez półek)";
+    if (shelvesCount > 0) {
+      shelvesText = `  – ${shelvesCount} półek (górna półka może służyć jako nadwyżki)`;
+    }
+
+    const text =
+`TYP
+  ${defaultsForType(type).labelSub} (${type})
+
+ID
+  ${id}
+
+POZYCJA NA MAPIE
+  X: ${x} px
+  Y: ${y} px
+
+ROZMIAR
+  szerokość:  ${w} px
+  wysokość:   ${h} px
+
+KOLOR
+  ${color}
+
+PÓŁKI
+${shelvesText}
+
+OPIS
+  Ten element możesz przesuwać na mapie.
+  Do tej lokalizacji możesz przypisać produkty (SKU + nazwa + ilość lokalna, opcjonalnie półka) w panelu poniżej.`;
+
+    detailsBody.textContent = text;
+  }
+
+  canvas.addEventListener("click", (e) => {
+    if (e.target === canvas || e.target.classList.contains("canvas-border")) {
+      setSelected(null);
+    }
+  });
+
+  /* SELEKT PÓŁKI DLA WYBRANEJ LOKALIZACJI */
+  function refreshShelfSelect() {
+    if (!selectedItem) {
+      prodShelfSelect.style.display = "none";
+      return;
+    }
+    const shelvesCount = parseInt(selectedItem.dataset.shelvesCount || "0", 10) || 0;
+    if (!shelvesCount || shelvesCount <= 0) {
+      prodShelfSelect.style.display = "none";
+      return;
+    }
+    prodShelfSelect.style.display = "";
+    prodShelfSelect.innerHTML = "";
+
+    for (let s = shelvesCount; s >= 1; s--) {
+      const opt = document.createElement("option");
+      opt.value = String(s);
+      opt.textContent = `Półka ${s}`;
+      if (s === shelvesCount) {
+        opt.textContent += " – nadwyżki";
+      }
+      prodShelfSelect.appendChild(opt);
+    }
+  }
+
+  /* KLUCZ PRODUKTU GLOBALNEGO */
+  function productKey(sku, name) {
+    const s = (sku || "").trim();
+    if (s) return "sku:" + s.toLowerCase();
+    const n = (name || "").trim();
+    return "name:" + n.toLowerCase();
+  }
+
+  /* RENDER PRODUKTÓW W LOKALIZACJI */
+  function renderProductsList(locationId) {
+    productsListEl.innerHTML = "";
+    if (!locationId || !productsByLocation[locationId] || productsByLocation[locationId].length === 0) {
+      productsListEl.innerHTML = '<div style="padding:4px 6px;font-size:11px;color:#6b7280;">Brak produktów w tej lokalizacji.</div>';
+      return;
+    }
+    const shelvesCount = selectedItem ? (parseInt(selectedItem.dataset.shelvesCount || "0", 10) || 0) : 0;
+
+    productsByLocation[locationId].forEach((p, idx) => {
+      const row = document.createElement("div");
+      row.classList.add("product-row");
+
+      const main = document.createElement("div");
+      main.classList.add("product-main");
+
+      const skuSpan = document.createElement("div");
+      skuSpan.classList.add("product-sku");
+      skuSpan.textContent = p.sku || "(brak SKU)";
+
+      const nameSpan = document.createElement("div");
+      nameSpan.classList.add("product-name");
+      nameSpan.textContent = p.name || "";
+
+      const qtySpan = document.createElement("div");
+      qtySpan.classList.add("product-qty");
+      qtySpan.textContent = "Ilość lokalna: " + (Number(p.qty) || 0);
+
+      main.appendChild(skuSpan);
+      main.appendChild(nameSpan);
+      main.appendChild(qtySpan);
+
+      if (p.shelf) {
+        const shelfSpan = document.createElement("div");
+        shelfSpan.classList.add("product-shelf");
+        const shelfNum = Number(p.shelf);
+        let txt = `Półka: ${shelfNum}`;
+        if (shelvesCount && shelfNum === shelvesCount) {
+          txt += " (nadwyżki)";
+        }
+        shelfSpan.textContent = txt;
+        main.appendChild(shelfSpan);
+      }
+
+const actions = document.createElement("div");
+actions.classList.add("product-actions");
+
+// przycisk ZGŁOŚ BRAK
+const btnReport = document.createElement("button");
+btnReport.textContent = "Zgłoś brak";
+btnReport.classList.add("report");
+btnReport.addEventListener("click", () => {
+  reportMissingProduct(locationId, p);
+});
+
+// przycisk USUŃ
+const btnRemove = document.createElement("button");
+btnRemove.textContent = "Usuń";
+btnRemove.addEventListener("click", () => {
+  productsByLocation[locationId].splice(idx, 1);
+  renderProductsList(locationId);
+  saveState();
+});
+
+actions.appendChild(btnReport);
+actions.appendChild(btnRemove);
+
+row.appendChild(main);
+row.appendChild(actions);
+productsListEl.appendChild(row);
+
+    });
+  }
+
+  btnAddProduct.addEventListener("click", () => {
+    if (!selectedItem) {
+      alert("Najpierw wybierz lokalizację na mapie.");
+      return;
+    }
+    const sku = (prodSkuInput.value || "").trim();
+    const name = (prodNameInput.value || "").trim();
+    const qtyLoc = Number(prodQtyLocInput.value || "0");
+    if (!sku && !name) {
+      alert("Podaj przynajmniej SKU lub nazwę produktu.");
+      return;
+    }
+    if (!(qtyLoc >= 0)) {
+      alert("Podaj poprawną ilość lokalną (0 lub więcej).");
+      return;
+    }
+
+    const shelvesCount = parseInt(selectedItem.dataset.shelvesCount || "0", 10) || 0;
+    let shelf = null;
+    if (shelvesCount > 0 && prodShelfSelect.style.display !== "none") {
+      shelf = prodShelfSelect.value || null;
+    }
+
+    const id = selectedItem.dataset.id;
+    if (!productsByLocation[id]) productsByLocation[id] = [];
+    productsByLocation[id].push({ sku, name, qty: qtyLoc, shelf });
+
+    // jeśli w globalnej liście nie ma produktu – dodaj go
+    const key = productKey(sku, name);
+    if (!globalProducts[key]) {
+      globalProducts[key] = { key, sku, name, totalQty: qtyLoc };
+      renderAllProductsList(globalSearchInput.value.trim());
+    }
+
+    prodSkuInput.value = "";
+    prodNameInput.value = "";
+    prodQtyLocInput.value = "";
+
+    renderProductsList(id);
+    saveState();
+  });
+
+// automatyczne zgłoszenie braku towaru przez Google Apps Script
+// automatyczne zgłoszenie braku towaru przez Google Apps Script (Web App)
+async function reportMissingProduct(locationId, product) {
+  if (!MISSING_REPORT_API) {
+    alert("Brak skonfigurowanego API do zgłaszania braków (MISSING_REPORT_API).");
+    return;
+  }
+
+  const payload = {
+    locationId: locationId,
+    shelf: product.shelf || "-",
+    sku: product.sku || "",
+    name: product.name || "",
+    qty: product.qty,
+    createdBy: "Mapa magazynu – aplikacja WWW"
+  };
+
+  console.log("Wysyłam zgłoszenie braku:", payload);
+
+  try {
+    const res = await fetch(MISSING_REPORT_API, {
+      method: "POST",
+      // 'text/plain' jest "simple request" -> brak preflight, brak problemów z CORS
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    console.log("Odpowiedź z Apps Script:", res.status);
+    alert("Zgłoszenie braku zostało wysłane. Dziękuję.");
+  } catch (err) {
+    console.error("Błąd przy wysyłaniu zgłoszenia braku:", err);
+    alert("Nie udało się wysłać zgłoszenia braku. Sprawdź połączenie z internetem lub konfigurację API.");
+  }
+}
+
+  /* GLOBALNA LISTA TOWARÓW */
+  function renderAllProductsList(filterRaw = "") {
+    const filter = (filterRaw || "").toLowerCase();
+    allProductsListEl.innerHTML = "";
+    const arr = Object.values(globalProducts);
+    const filtered = filter
+      ? arr.filter(p => (p.sku || "").toLowerCase().includes(filter) ||
+                        (p.name || "").toLowerCase().includes(filter))
+      : arr;
+
+    if (filtered.length === 0) {
+      allProductsListEl.innerHTML =
+        '<div style="padding:4px 6px;font-size:11px;color:#6b7280;">Brak towarów – dodaj produkty w formularzu powyżej lub przy przypisaniu do lokalizacji.</div>';
+      return;
+    }
+
+    filtered.sort((a, b) => {
+      const ak = (a.sku || a.name || "").toLowerCase();
+      const bk = (b.sku || b.name || "").toLowerCase();
+      return ak.localeCompare(bk);
+    });
+
+    filtered.forEach(p => {
+      const row = document.createElement("div");
+      row.classList.add("all-product-row");
+
+      const main = document.createElement("div");
+      main.classList.add("all-product-main");
+
+      const skuSpan = document.createElement("div");
+      skuSpan.classList.add("all-product-sku");
+      skuSpan.textContent = p.sku || "(brak SKU)";
+
+      const nameSpan = document.createElement("div");
+      nameSpan.classList.add("all-product-name");
+      nameSpan.textContent = p.name || "";
+
+      main.appendChild(skuSpan);
+      main.appendChild(nameSpan);
+
+      const qtyInput = document.createElement("input");
+      qtyInput.type = "number";
+      qtyInput.min = "0";
+      qtyInput.step = "1";
+      qtyInput.classList.add("all-product-qty-input");
+      qtyInput.value = p.totalQty ?? 0;
+      qtyInput.addEventListener("change", () => {
+        p.totalQty = Number(qtyInput.value) || 0;
+        saveState();
+      });
+
+      const delBtn = document.createElement("button");
+      delBtn.classList.add("all-product-delete");
+      delBtn.textContent = "Usuń";
+      delBtn.addEventListener("click", () => {
+        delete globalProducts[p.key];
+        renderAllProductsList(globalSearchInput.value.trim());
+        saveState();
+      });
+
+      row.appendChild(main);
+      row.appendChild(qtyInput);
+      row.appendChild(delBtn);
+      allProductsListEl.appendChild(row);
+    });
+  }
+
+  btnAddGlobal.addEventListener("click", () => {
+    const sku = (globalSkuInput.value || "").trim();
+    const name = (globalNameInput.value || "").trim();
+    const qty = Number(globalQtyInput.value || "0");
+    if (!sku && !name) {
+      alert("Podaj przynajmniej SKU lub nazwę produktu.");
+      return;
+    }
+    if (!(qty >= 0)) {
+      alert("Podaj poprawną ilość ogólną (0 lub więcej).");
+      return;
+    }
+    const key = productKey(sku, name);
+    globalProducts[key] = { key, sku, name, totalQty: qty };
+
+    globalSkuInput.value = "";
+    globalNameInput.value = "";
+    globalQtyInput.value = "";
+
+    renderAllProductsList(globalSearchInput.value.trim());
+    saveState();
+  });
+
+  globalSearchInput.addEventListener("input", () => {
+    renderAllProductsList(globalSearchInput.value.trim());
+  });
+
+  /* WYSZUKIWARKA PRODUKTÓW (lokalizacje) */
+  function clearSearchHighlights() {
+    document.querySelectorAll(".map-item.search-hit").forEach(el => el.classList.remove("search-hit"));
+  }
+
+  function scrollToElement(el) {
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+    const offsetX = rect.left - canvasRect.left + rect.width / 2;
+    const offsetY = rect.top - canvasRect.top + rect.height / 2;
+    const targetScrollLeft = offsetX * currentZoom - canvasWrapper.clientWidth / 2;
+    const targetScrollTop = offsetY * currentZoom - canvasWrapper.clientHeight / 2;
+    canvasWrapper.scrollLeft = targetScrollLeft;
+    canvasWrapper.scrollTop = targetScrollTop;
+  }
+
+function runSearch() {
+  const queryRaw = (searchInput.value || "").trim();
+  const query = queryRaw.toLowerCase();
+  clearSearchHighlights();
+  searchResultsEl.textContent = "";
+
+  if (!query) return;
+
+  const hits = [];
+  let totalInLocations = 0;
+
+  // Struktura: { locationId: { totalQty, shelves: { [shelf]: qty } } }
+  const perLocation = {};
+
+  for (const [locationId, products] of Object.entries(productsByLocation)) {
+    for (const p of products) {
+      const sku = (p.sku || "").toLowerCase();
+      const name = (p.name || "").toLowerCase();
+      if (sku.includes(query) || name.includes(query)) {
+        const el = Array.from(document.querySelectorAll(".map-item"))
+          .find(e => e.dataset.id === locationId);
+        if (el && !hits.includes(el)) {
+          hits.push(el);
+        }
+
+        const qty = Number(p.qty) || 0;
+        const shelf = p.shelf || "-";
+
+        if (!perLocation[locationId]) {
+          perLocation[locationId] = { totalQty: 0, shelves: {} };
+        }
+        perLocation[locationId].totalQty += qty;
+        perLocation[locationId].shelves[shelf] =
+          (perLocation[locationId].shelves[shelf] || 0) + qty;
+
+        totalInLocations += qty;
+      }
+    }
+  }
+
+  if (hits.length === 0) {
+    alert("Nie znaleziono produktu o podanym SKU / nazwie.");
+    return;
+  }
+
+  hits.forEach(el => el.classList.add("search-hit"));
+  const first = hits[0];
+  setSelected(first);
+  scrollToElement(first);
+
+  // Budujemy czytelną listę z półkami
+  const parts = [];
+  Object.entries(perLocation).forEach(([locId, data]) => {
+    const shelvesParts = [];
+    Object.entries(data.shelves).forEach(([shelf, qty]) => {
+      if (shelf === "-" || !shelf) {
+        shelvesParts.push(`bez półki: ${qty}`);
+      } else {
+        shelvesParts.push(`półka ${shelf}: ${qty}`);
+      }
+    });
+    parts.push(`${locId} (${shelvesParts.join(", ")})`);
+  });
+
+  searchResultsEl.textContent =
+    "Lokalizacja: " +
+    parts.join(" | ") +
+    " | Łączna ilość we wszystkich lokalizacjach: " +
+    totalInLocations;
+}
+
+  btnSearch.addEventListener("click", runSearch);
+  searchInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") runSearch();
+  });
+
+  /* USUWANIE ELEMENTU Z MAPY */
+  function deleteSelected() {
+    if (!selectedItem) return;
+    const id = selectedItem.dataset.id;
+    selectedItem.remove();
+    delete productsByLocation[id];
+    setSelected(null);
+    saveState();
+  }
+
+  btnDeleteSelected.addEventListener("click", deleteSelected);
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Delete") deleteSelected();
+  });
+
+  /* HISTORIA – STAN */
+  function getCurrentState() {
+    const items = Array.from(document.querySelectorAll(".map-item")).map(el => {
+      const type = el.dataset.type;
+      const id = el.dataset.id;
+      const x = Math.round(parseFloat(el.style.left || "0"));
+      const y = Math.round(parseFloat(el.style.top || "0"));
+      const labelSub = el.dataset.labelSub || defaultsForType(type).labelSub;
+      const color = el.dataset.color || defaultsForType(type).color;
+      const width = Math.round(parseFloat(el.style.width || defaultsForType(type).width));
+      const height = Math.round(parseFloat(el.style.height || defaultsForType(type).height));
+      const shelvesCount = parseInt(el.dataset.shelvesCount || "0", 10) || 0;
+      const products = productsByLocation[id] ? [...productsByLocation[id]] : [];
+      return { type, id, x, y, width, height, color, labelSub, shelvesCount, products };
+    });
+
+    const productsArr = Object.values(globalProducts).map(p => ({
+      key: p.key,
+      sku: p.sku,
+      name: p.name,
+      totalQty: p.totalQty ?? 0
+    }));
+
+    return { items, products: productsArr };
+  }
+
+  function applyState(state) {
+    const items = state?.items || [];
+    const productsArr = state?.products || [];
+
+    // mapa
+    document.querySelectorAll(".map-item").forEach(el => el.remove());
+    Object.keys(counters).forEach(k => counters[k] = 1);
+    for (const k of Object.keys(productsByLocation)) delete productsByLocation[k];
+
+    items.forEach(item => {
+      createMapItem(item.type, item.x, item.y, {
+        id: item.id,
+        labelSub: item.labelSub,
+        width: item.width,
+        height: item.height,
+        color: item.color,
+        shelvesCount: item.shelvesCount || 0,
+        products: item.products
+      });
+    });
+
+    // global products
+    for (const k of Object.keys(globalProducts)) delete globalProducts[k];
+    productsArr.forEach(p => {
+      const key = p.key || productKey(p.sku, p.name);
+      globalProducts[key] = {
+        key,
+        sku: p.sku,
+        name: p.name,
+        totalQty: p.totalQty ?? 0
+      };
+    });
+
+    setSelected(null);
+    renderAllProductsList(globalSearchInput.value.trim());
+  }
+
+  // ⬇️ TU spinamy historię z Firestore
+  function saveState(options = {}) {
+    const snapshot = getCurrentState();
+    historyStack.push(JSON.parse(JSON.stringify(snapshot)));
+    if (historyStack.length > 100) historyStack.shift();
+    redoStack.length = 0;
+
+    // 🔁 automatyczny zapis do chmury (Firestore), jeśli mamy funkcję z Firebase
+    if (!options.skipCloudSync && typeof scheduleCloudSave === "function") {
+      scheduleCloudSave();
+    }
+  }
+
+  btnUndo.addEventListener("click", () => {
+    if (historyStack.length <= 1) return;
+    const current = historyStack.pop();
+    redoStack.push(current);
+    const prev = historyStack[historyStack.length - 1];
+    applyState(prev);
+
+    // 🔁 po cofnięciu też chcemy zaktualizować Firestore
+    if (typeof scheduleCloudSave === "function") {
+      scheduleCloudSave();
+    }
+  });
+
+  btnRedo.addEventListener("click", () => {
+    if (!redoStack.length) return;
+    const state = redoStack.pop();
+    historyStack.push(state);
+    applyState(state);
+
+    // 🔁 to samo przy ponowieniu operacji
+    if (typeof scheduleCloudSave === "function") {
+      scheduleCloudSave();
+    }
+  });
+
+  /* ZAPIS / ODCZYT PLIKU */
+  btnDownload.addEventListener("click", () => {
+    const data = getCurrentState();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "magazyn-layout.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  fileInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        applyState(data);
+        historyStack.length = 0;
+        redoStack.length = 0;
+
+        // zapisujemy nowy stan do historii + chmury
+        saveState();
+
+      } catch (err) {
+        alert("Błąd przy wczytywaniu pliku: " + err.message);
+      }
+    };
+    reader.readAsText(file, "utf-8");
+  });
+
+  /* START */
+  applyZoom();
+  // pierwszy snapshot tylko lokalnie – bez sync do chmury
+  saveState({ skipCloudSync: true });
+  renderAllProductsList("");
+</script>
+
+<!-- Firebase – wersja compat, idealna do gołego HTML -->
+<script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore-compat.js"></script>
+
+<script>
+  // ✅ Twoja konfiguracja Firebase
+  const firebaseConfig = {
+    apiKey: "AIzaSyD77ijZeDLKy_MPsGWc7xsTCC8ZucAswTU",
+    authDomain: "dionizos-trade.firebaseapp.com",
+    projectId: "dionizos-trade",
+    storageBucket: "dionizos-trade.firebasestorage.app",
+    messagingSenderId: "439614662502",
+    appId: "1:439614662502:web:c22cd30fe9b1b9b1cacaa7"
+  };
+
+  // 🔥 Start Firebase
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  // Jeden wspólny dokument dla całej mapy magazynu
+  const WAREHOUSE_DOC_ID = "magazyn_glowny_v1";
+
+  // Znacznik czasu ostatniego lokalnego zapisu (żeby nie nadpisywać samym sobą)
+  let lastLocalSaveTs = 0;
+
+  // Mały debounce, żeby nie zapisywać przy każdym pikselu przesunięcia
+  let saveTimeout = null;
+
+  // ✅ ZAPIS DO CHMURY – używamy Twojego getCurrentState()
+  async function saveLayoutToCloud() {
+    if (typeof getCurrentState !== "function") {
+      console.warn("[SYNC] Brak funkcji getCurrentState()");
+      return;
+    }
+    const state = getCurrentState();
+    const now = Date.now();
+    lastLocalSaveTs = now;
+
+    await db.collection("warehouseLayouts")
+      .doc(WAREHOUSE_DOC_ID)
+      .set({
+        state,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+    console.log("[SYNC] Układ zapisany do Firestore");
+  }
+
+  // ✅ Kolejkuje zapis (wywoływane z saveState)
+  function scheduleCloudSave() {
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+      saveLayoutToCloud().catch(err => console.error("Błąd zapisu do chmury:", err));
+    }, 1000); // zapis 1 sekundę po ostatniej zmianie
+  }
+
+  // ✅ NASŁUCH ZMIAN Z CHMURY (realtime) – używamy applyState()
+  function subscribeToCloudLayout() {
+    db.collection("warehouseLayouts")
+      .doc(WAREHOUSE_DOC_ID)
+      .onSnapshot((doc) => {
+        if (!doc.exists) {
+          console.log("[SYNC] Brak układu w Firestore – zapisze się przy pierwszej zmianie.");
+          return;
+        }
+
+        const data = doc.data();
+        const serverTs = data.updatedAt ? data.updatedAt.toMillis() : 0;
+
+        // jeśli to my sami przed chwilą zapisaliśmy – nie wczytuj ponownie
+        if (serverTs <= lastLocalSaveTs + 500) {
+          return;
+        }
+
+        console.log("[SYNC] Otrzymano nowy układ z Firestore. Aktualizuję mapę...");
+        if (typeof applyState === "function") {
+          applyState(data.state);
+          // po applyState zrób lokalny snapshot (bez ponownego synca do chmury)
+          if (typeof saveState === "function") {
+            saveState({ skipCloudSync: true });
+          }
+        } else {
+          console.warn("[SYNC] Brak funkcji applyState()");
+        }
+      }, (err) => {
+        console.error("Błąd przy nasłuchiwaniu Firestore:", err);
+      });
+  }
+
+  // 🔁 Start nasłuchu po załadowaniu strony
+  window.addEventListener("load", () => {
+    console.log("[SYNC] Start nasłuchu Firestore");
+    subscribeToCloudLayout();
+  });
+</script>
+</body>
+</html>
