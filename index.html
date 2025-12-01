@@ -49,6 +49,28 @@
       min-height: calc(100vh - 60px);
     }
 
+    .search-location-box {
+  background: #fffbe6;
+  border: 2px solid #ffd95e;
+  padding: 15px 20px;
+  border-radius: 12px;
+  margin-top: 15px;
+  font-size: 15px;
+  color: #333;
+}
+
+.search-location-box h3 {
+  margin: 0 0 10px 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.search-location-details p {
+  margin: 4px 0;
+  line-height: 1.4;
+}
+
+
     /* LEWY PANEL – PALETA */
     .tools-panel {
       background: #ffffff;
@@ -2067,25 +2089,58 @@ function runSearch() {
   setSelected(first);
   scrollToElement(first);
 
-  // Budujemy czytelną listę z półkami
-  const parts = [];
-  Object.entries(perLocation).forEach(([locId, data]) => {
-    const shelvesParts = [];
-    Object.entries(data.shelves).forEach(([shelf, qty]) => {
-      if (shelf === "-" || !shelf) {
-        shelvesParts.push(`bez półki: ${qty}`);
-      } else {
-        shelvesParts.push(`półka ${shelf}: ${qty}`);
-      }
-    });
-    parts.push(`${locId} (${shelvesParts.join(", ")})`);
-  });
+// -----------------------------
+// Budujemy opis lokalizacji i półek (bez powtarzania nazwy regału)
+// -----------------------------
+let locationName = "";
+let shelvesList = []; // lista półek (półka 2: 5 szt...)
 
-  searchResultsEl.textContent =
-    "Lokalizacja: " +
-    parts.join(" | ") +
-    " | Łączna ilość we wszystkich lokalizacjach: " +
-    totalInLocations;
+Object.entries(perLocation).forEach(([locId, data]) => {
+  // Zapamiętujemy nazwę lokalizacji (tylko raz)
+  locationName = locId;
+
+  const shelvesEntries = Object.entries(data.shelves);
+
+  shelvesEntries.forEach(([shelf, qty]) => {
+    const numericQty = Number(qty) || 0;
+
+    // Ignoruj "bez półki: 0" jeśli to jedyna wartość
+    if ((shelf === "-" || !shelf) &&
+        shelvesEntries.length === 1 &&
+        numericQty === 0) {
+      return;
+    }
+
+    if (shelf === "-" || !shelf) {
+      shelvesList.push(`bez półki: ${numericQty} szt`);
+    } else {
+      shelvesList.push(`półka ${shelf}: ${numericQty} szt`);
+    }
+  });
+});
+
+// -----------------------------
+// Wyświetlamy wynik
+// -----------------------------
+searchResultsEl.innerHTML = `
+  <div class="search-box">
+    <div class="search-title"> 📍 Wyniki wyszukiwania</div>
+
+    <div class="search-row">
+      <strong>Lokalizacja:</strong> ${locationName}
+    </div>
+
+    ${
+      shelvesList.length > 0
+        ? `<div class="search-row"><strong>Półki:</strong> ${shelvesList.join(", ")}</div>`
+        : ""
+    }
+
+    <div class="search-row">
+      <strong>Łączna ilość we wszystkich lokalizacjach:</strong> ${totalInLocations} szt
+    </div>
+  </div>
+`;
 }
 
   btnSearch.addEventListener("click", runSearch);
