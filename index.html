@@ -1238,65 +1238,76 @@ if (toggleToolsPanelBtn) {
     }
   }
 
+  function createCustomPaletteItem(key, def) {
+  const item = document.createElement("div");
+  item.classList.add("palette-item");
+  item.draggable = true;
+  item.dataset.type = key;
+  item.dataset.custom = "1"; // oznaczamy jako własny typ
+
+  const left = document.createElement("div");
+  left.classList.add("palette-item-left");
+
+  const colorBox = document.createElement("div");
+  colorBox.classList.add("palette-item-type");
+  colorBox.style.backgroundColor = def.color;
+
+  const label = document.createElement("div");
+  label.textContent = def.shelvesCount > 0
+    ? `${def.labelSub} (${def.shelvesCount} półek)`
+    : def.labelSub;
+
+  left.appendChild(colorBox);
+  left.appendChild(label);
+
+  const delBtn = document.createElement("button");
+  delBtn.classList.add("palette-delete");
+  delBtn.textContent = "×";
+  delBtn.title = "Usuń typ z palety";
+
+  item.appendChild(left);
+  item.appendChild(delBtn);
+
+  palette.appendChild(item);
+  attachPaletteDragAndDelete(item);
+}
+
   document.querySelectorAll(".palette-item").forEach(attachPaletteDragAndDelete);
 
-  /* DODANIE WŁASNEGO TYPU */
-  btnAddType.addEventListener("click", () => {
-    const keyRaw = (newTypeKeyInput.value || "").trim();
-    const key = keyRaw.replace(/\s+/g, "_");
-    const name = (newTypeNameInput.value || "").trim() || key.toUpperCase();
-    const width = parseInt(newTypeWidthInput.value, 10) || 120;
-    const height = parseInt(newTypeHeightInput.value, 10) || 60;
-    const color = newTypeColorInput.value || "#374151";
-    const shelvesCount = parseInt(newTypeShelvesInput.value, 10) || 0;
+/* DODANIE WŁASNEGO TYPU */
+btnAddType.addEventListener("click", () => {
+  const keyRaw = (newTypeKeyInput.value || "").trim();
+  const key = keyRaw.replace(/\s+/g, "_");
+  const name = (newTypeNameInput.value || "").trim() || key.toUpperCase();
+  const width = parseInt(newTypeWidthInput.value, 10) || 120;
+  const height = parseInt(newTypeHeightInput.value, 10) || 60;
+  const color = newTypeColorInput.value || "#374151";
+  const shelvesCount = parseInt(newTypeShelvesInput.value, 10) || 0;
 
-    if (!key) {
-      alert("Podaj klucz typu (bez spacji).");
-      return;
-    }
-    if (typeDefs[key]) {
-      alert("Taki typ już istnieje. Zmień klucz lub edytuj go w kodzie.");
-      return;
-    }
+  if (!key) {
+    alert("Podaj klucz typu (bez spacji).");
+    return;
+  }
+  if (typeDefs[key]) {
+    alert("Taki typ już istnieje. Zmień klucz lub edytuj go w kodzie.");
+    return;
+  }
 
-    typeDefs[key] = { labelSub: name, width, height, color, shelvesCount };
-    counters[key] = 1;
+  // zapis do słownika typów
+  typeDefs[key] = { labelSub: name, width, height, color, shelvesCount };
+  counters[key] = 1;
 
-    const item = document.createElement("div");
-    item.classList.add("palette-item");
-    item.draggable = true;
-    item.dataset.type = key;
+  // utworzenie kafelka w palecie (z data-custom="1")
+  createCustomPaletteItem(key, typeDefs[key]);
 
-    const left = document.createElement("div");
-    left.classList.add("palette-item-left");
+  // wyczyszczenie formularza
+  newTypeKeyInput.value = "";
+  newTypeNameInput.value = "";
+  newTypeWidthInput.value = "";
+  newTypeHeightInput.value = "";
+  newTypeShelvesInput.value = "";
+});
 
-    const colorBox = document.createElement("div");
-    colorBox.classList.add("palette-item-type");
-    colorBox.style.backgroundColor = color;
-
-    const label = document.createElement("div");
-    label.textContent = shelvesCount > 0 ? `${name} (${shelvesCount} półek)` : name;
-
-    left.appendChild(colorBox);
-    left.appendChild(label);
-
-    const delBtn = document.createElement("button");
-    delBtn.classList.add("palette-delete");
-    delBtn.textContent = "×";
-    delBtn.title = "Usuń typ z palety";
-
-    item.appendChild(left);
-    item.appendChild(delBtn);
-
-    palette.appendChild(item);
-    attachPaletteDragAndDelete(item);
-
-    newTypeKeyInput.value = "";
-    newTypeNameInput.value = "";
-    newTypeWidthInput.value = "";
-    newTypeHeightInput.value = "";
-    newTypeShelvesInput.value = "";
-  });
 
   /* DROP NA MAPIE */
   canvas.addEventListener("dragover", (e) => {
@@ -2165,66 +2176,107 @@ searchResultsEl.innerHTML = `
 
   /* HISTORIA – STAN */
   function getCurrentState() {
-    const items = Array.from(document.querySelectorAll(".map-item")).map(el => {
-      const type = el.dataset.type;
-      const id = el.dataset.id;
-      const x = Math.round(parseFloat(el.style.left || "0"));
-      const y = Math.round(parseFloat(el.style.top || "0"));
-      const labelSub = el.dataset.labelSub || defaultsForType(type).labelSub;
-      const color = el.dataset.color || defaultsForType(type).color;
-      const width = Math.round(parseFloat(el.style.width || defaultsForType(type).width));
-      const height = Math.round(parseFloat(el.style.height || defaultsForType(type).height));
-      const shelvesCount = parseInt(el.dataset.shelvesCount || "0", 10) || 0;
-      const products = productsByLocation[id] ? [...productsByLocation[id]] : [];
-      return { type, id, x, y, width, height, color, labelSub, shelvesCount, products };
-    });
+  const items = Array.from(document.querySelectorAll(".map-item")).map(el => {
+    const type = el.dataset.type;
+    const id = el.dataset.id;
+    const x = Math.round(parseFloat(el.style.left || "0"));
+    const y = Math.round(parseFloat(el.style.top || "0"));
+    const labelSub = el.dataset.labelSub || defaultsForType(type).labelSub;
+    const color = el.dataset.color || defaultsForType(type).color;
+    const width = Math.round(parseFloat(el.style.width || defaultsForType(type).width));
+    const height = Math.round(parseFloat(el.style.height || defaultsForType(type).height));
+    const shelvesCount = parseInt(el.dataset.shelvesCount || "0", 10) || 0;
+    const products = productsByLocation[id] ? [...productsByLocation[id]] : [];
+    return { type, id, x, y, width, height, color, labelSub, shelvesCount, products };
+  });
 
-    const productsArr = Object.values(globalProducts).map(p => ({
-      key: p.key,
+  const productsArr = Object.values(globalProducts).map(p => ({
+    key: p.key,
+    sku: p.sku,
+    name: p.name,
+    totalQty: p.totalQty ?? 0
+  }));
+
+  // 🔹 zapisujemy również WŁASNE typy z palety (bez bazowych)
+  const baseKeys = ["regał", "stanowisko", "paleta", "korytarz", "sciana"];
+  const customTypes = Object.entries(typeDefs)
+    .filter(([key]) => !baseKeys.includes(key))
+    .map(([key, def]) => ({
+      key,
+      labelSub: def.labelSub,
+      width: def.width,
+      height: def.height,
+      color: def.color,
+      shelvesCount: def.shelvesCount || 0
+    }));
+
+  return { items, products: productsArr, customTypes };
+}
+
+function applyState(state) {
+  const items = state?.items || [];
+  const productsArr = state?.products || [];
+  const customTypes = state?.customTypes || [];
+
+  // klucze bazowe – tych typów nie usuwamy
+  const baseKeys = ["regał", "stanowisko", "paleta", "korytarz", "sciana"];
+
+  // 🔹 czyścimy mapę
+  document.querySelectorAll(".map-item").forEach(el => el.remove());
+  Object.keys(counters).forEach(k => counters[k] = 1);
+  for (const k of Object.keys(productsByLocation)) delete productsByLocation[k];
+
+  // 🔹 usuwamy stare customowe kafelki z palety
+  document.querySelectorAll(".palette-item[data-custom='1']").forEach(el => el.remove());
+
+  // 🔹 czyścimy stare customowe wpisy z typeDefs
+  Object.keys(typeDefs).forEach(key => {
+    if (!baseKeys.includes(key)) {
+      delete typeDefs[key];
+    }
+  });
+
+  // 🔹 odtwarzamy customTypes z zapisanej struktury
+  customTypes.forEach(t => {
+    typeDefs[t.key] = {
+      labelSub: t.labelSub,
+      width: t.width,
+      height: t.height,
+      color: t.color,
+      shelvesCount: t.shelvesCount || 0
+    };
+    counters[t.key] = counters[t.key] || 1;
+    createCustomPaletteItem(t.key, typeDefs[t.key]);
+  });
+
+  // 🔹 odtwarzamy elementy na mapie
+  items.forEach(item => {
+    createMapItem(item.type, item.x, item.y, {
+      id: item.id,
+      labelSub: item.labelSub,
+      width: item.width,
+      height: item.height,
+      color: item.color,
+      shelvesCount: item.shelvesCount || 0,
+      products: item.products
+    });
+  });
+
+  // 🔹 odtwarzamy globalProducts
+  for (const k of Object.keys(globalProducts)) delete globalProducts[k];
+  productsArr.forEach(p => {
+    const key = p.key || productKey(p.sku, p.name);
+    globalProducts[key] = {
+      key,
       sku: p.sku,
       name: p.name,
       totalQty: p.totalQty ?? 0
-    }));
+    };
+  });
 
-    return { items, products: productsArr };
-  }
-
-  function applyState(state) {
-    const items = state?.items || [];
-    const productsArr = state?.products || [];
-
-    // mapa
-    document.querySelectorAll(".map-item").forEach(el => el.remove());
-    Object.keys(counters).forEach(k => counters[k] = 1);
-    for (const k of Object.keys(productsByLocation)) delete productsByLocation[k];
-
-    items.forEach(item => {
-      createMapItem(item.type, item.x, item.y, {
-        id: item.id,
-        labelSub: item.labelSub,
-        width: item.width,
-        height: item.height,
-        color: item.color,
-        shelvesCount: item.shelvesCount || 0,
-        products: item.products
-      });
-    });
-
-    // global products
-    for (const k of Object.keys(globalProducts)) delete globalProducts[k];
-    productsArr.forEach(p => {
-      const key = p.key || productKey(p.sku, p.name);
-      globalProducts[key] = {
-        key,
-        sku: p.sku,
-        name: p.name,
-        totalQty: p.totalQty ?? 0
-      };
-    });
-
-    setSelected(null);
-    renderAllProductsList(globalSearchInput.value.trim());
-  }
+  setSelected(null);
+  renderAllProductsList(globalSearchInput.value.trim());
+}
 
   // ⬇️ TU spinamy historię z Firestore
   function saveState(options = {}) {
