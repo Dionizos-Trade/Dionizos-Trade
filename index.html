@@ -1218,25 +1218,40 @@ if (toggleToolsPanelBtn) {
 
   /* PALETA type drag + usuwanie typu */
   function attachPaletteDragAndDelete(el) {
-    el.addEventListener("dragstart", (e) => {
-      draggedPaletteType = el.dataset.type;
-      e.dataTransfer.effectAllowed = "copy";
-    });
-    el.addEventListener("dragend", () => {
-      draggedPaletteType = null;
-    });
+  el.addEventListener("dragstart", (e) => {
+    draggedPaletteType = el.dataset.type;
+    e.dataTransfer.effectAllowed = "copy";
+  });
+  el.addEventListener("dragend", () => {
+    draggedPaletteType = null;
+  });
 
-    const delBtn = el.querySelector(".palette-delete");
-    if (delBtn) {
-      delBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        const type = el.dataset.type;
-        if (!confirm(`Usunąć typ „${type}” z palety? (elementy na mapie zostaną)`)) return;
-        el.remove();
-      });
-    }
+  const delBtn = el.querySelector(".palette-delete");
+  if (delBtn) {
+    delBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const type = el.dataset.type;
+
+      if (!confirm(`Usunąć typ „${type}” z palety? (elementy na mapie zostaną)`)) return;
+
+      // 🔹 usuwamy kafelek z palety
+      el.remove();
+
+      // 🔹 jeśli to własny typ (nie bazowy) – kasujemy go też z typeDefs
+      const baseKeys = ["regał", "stanowisko", "paleta", "korytarz", "sciana"];
+      if (!baseKeys.includes(type) && typeDefs[type]) {
+        delete typeDefs[type];
+        delete counters[type];
+      }
+
+      // 🔹 zapis stanu -> Firestore
+      if (typeof saveState === "function") {
+        saveState();
+      }
+    });
   }
+}
 
   function createCustomPaletteItem(key, def) {
   const item = document.createElement("div");
