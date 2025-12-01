@@ -589,16 +589,75 @@ body.tools-collapsed .btn-collapse {
     }
 
 /* kolumna z przyciskami: Zgłoś brak / Usuń */
+/* kontener na przyciski w karcie produktu */
 .product-actions {
   display: flex;
-  flex-direction: column;
+  flex-direction: column;   /* dwa wiersze pod sobą */
+  gap: 6px;
+  align-items: flex-end;    /* wszystko przy prawej krawędzi karty, jak wcześniej */
+}
+
+/* górny rząd: [Przenieś] [Zgłoś brak] obok siebie */
+.product-actions-top {
+  display: flex;
   gap: 8px;
 }
+
+/* dolny rząd: [Usuń] – zwykły kafelek jak pozostałe */
+.product-actions-bottom {
+  display: flex;
+  gap: 8px;      /* 🔥 odstęp między Końcówka i Usuń */
+}
+/* wszystkie trzy wyglądają tak samo (jak wcześniej) */
+.product-row button {
+  border: none;
+  border-radius: 999px;
+  padding: 2px 6px;
+  font-size: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* równa szerokość wszystkich kafelków */
+.product-row button {
+  min-width: 70px;      /* albo 85 / 90 jeśli chcesz większe */
+  text-align: center;
+}
+
+
+/* kolory – te masz już u siebie, tylko przypominam */
+.product-row button.report {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.product-row button.move {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.product-row button.remove {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* KOŃCÓWKA TOWARU */
+.product-row button.lowstock {
+  background: #fef9c3;  /* jasny żółty */
+  color: #92400e;       /* brązowy tekst */
+}
+
 
 .product-row button.report {
   background: #dbeafe;
   color: #1d4ed8;
 }
+
+.product-row button.move {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
 
     .product-row button {
       border: none;
@@ -1038,6 +1097,14 @@ const MISSING_REPORT_API = "https://script.google.com/macros/s/AKfycbwtumaJ4uHgx
   const zoomResetBtn = document.getElementById("zoomReset");
   const zoomLevelLabel = document.getElementById("zoomLevelLabel");
 
+    // Anulowanie trybu przenoszenia klawiszem Escape
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && pendingMove) {
+      cancelMoveAndRestoreDetails();
+    }
+  });
+
+
   // Typy
   const typeDefs = {
     "regał":      { labelSub: "Regał magazynowy",      width: 140, height: 60,  color: "#2563eb", shelvesCount: 0 },
@@ -1073,6 +1140,11 @@ const MISSING_REPORT_API = "https://script.google.com/macros/s/AKfycbwtumaJ4uHgx
   let dragOffset = { x: 0, y: 0 };
   let movedOnCurrentDrag = false;
   let selectedItem = null;
+
+    // Tryb przenoszenia produktu między lokalizacjami
+  // { fromLocationId, productIndex, product }
+  let pendingMove = null;
+
 
   // Zoom
   let currentZoom = 1;
@@ -1332,6 +1404,76 @@ if (toggleToolsPanelBtn) {
 
     div.addEventListener("mousedown", (e) => {
       e.stopPropagation();
+          div.addEventListener("click", (e) => {
+      e.stopPropagation();
+
+      // Jeśli jesteśmy w trybie przenoszenia produktu
+      if (pendingMove) {
+        const { fromLocationId, productIndex, product } = pendingMove;
+        const targetId = div.dataset.id;
+
+        if (targetId === fromLocationId) {
+          alert("To jest ta sama lokalizacja. Wybierz inną, aby przenieść produkt.");
+          cancelMoveAndRestoreDetails();
+          return;
+        }
+
+        const sourceArr = productsByLocation[fromLocationId];
+        if (!sourceArr || !sourceArr[productIndex]) {
+          alert("Nie udało się znaleźć produktu w źródłowej lokalizacji.");
+          cancelMoveAndRestoreDetails();
+          return;
+        }
+
+        // Półka w lokalizacji docelowej (jeśli jest)
+        const shelvesCount = parseInt(div.dataset.shelvesCount || "0", 10) || 0;
+        let shelf = product.shelf || null;
+
+        if (shelvesCount > 0) {
+          const input = prompt(
+            `Na którą półkę przenieść produkt? (1–${shelvesCount}, górna = ${shelvesCount})`,
+            shelvesCount
+          );
+          if (input === null) {
+            // użytkownik anulował – wyjście z trybu przenoszenia
+            cancelMoveAndRestoreDetails();
+            return;
+          }
+          const shelfNum = Number(input);
+          if (!shelfNum || shelfNum < 1 || shelfNum > shelvesCount) {
+            alert("Nieprawidłowy numer półki.");
+            cancelMoveAndRestoreDetails();
+            return;
+          }
+          shelf = String(shelfNum);
+        } else {
+          shelf = null;
+        }
+
+        // 1) usuń ze starej lokalizacji
+        sourceArr.splice(productIndex, 1);
+        if (fromLocationId === (selectedItem && selectedItem.dataset.id)) {
+          renderProductsList(fromLocationId);
+        }
+
+        // 2) dodaj do nowej lokalizacji
+        if (!productsByLocation[targetId]) productsByLocation[targetId] = [];
+        productsByLocation[targetId].push({ ...product, shelf });
+
+        // 3) wybierz nową lokalizację i odśwież
+        pendingMove = null;
+        setSelected(div);
+        renderProductsList(targetId);
+        saveState();
+
+        detailsBody.textContent += "\n\n✅ Produkt został przeniesiony do tej lokalizacji.";
+        return;
+      }
+
+      // Normalne zachowanie – po prostu zaznaczenie elementu
+      setSelected(div);
+    });
+
       setSelected(div);
       draggingItem = div;
       movedOnCurrentDrag = false;
@@ -1347,8 +1489,74 @@ if (toggleToolsPanelBtn) {
 
     div.addEventListener("click", (e) => {
       e.stopPropagation();
+
+      // Jeśli jesteśmy w trybie przenoszenia produktu
+      if (pendingMove) {
+        const { fromLocationId, productIndex, product } = pendingMove;
+        const targetId = div.dataset.id;
+
+        if (targetId === fromLocationId) {
+          alert("To jest ta sama lokalizacja. Wybierz inną, aby przenieść produkt.");
+          cancelMoveAndRestoreDetails();
+          return;
+        }
+
+        const sourceArr = productsByLocation[fromLocationId];
+        if (!sourceArr || !sourceArr[productIndex]) {
+          alert("Nie udało się znaleźć produktu w źródłowej lokalizacji.");
+          cancelMoveAndRestoreDetails();
+          return;
+        }
+
+        // Półka w lokalizacji docelowej (jeśli jest)
+        const shelvesCount = parseInt(div.dataset.shelvesCount || "0", 10) || 0;
+        let shelf = product.shelf || null;
+
+        if (shelvesCount > 0) {
+          const input = prompt(
+            `Na którą półkę przenieść produkt? (1–${shelvesCount}, górna = ${shelvesCount})`,
+            shelvesCount
+          );
+          if (input === null) {
+            // użytkownik anulował prompt – wracamy do trybu normalnego
+            cancelMoveAndRestoreDetails();
+            return;
+          }
+          const shelfNum = Number(input);
+          if (!shelfNum || shelfNum < 1 || shelfNum > shelvesCount) {
+            alert("Nieprawidłowy numer półki.");
+            cancelMoveAndRestoreDetails();
+            return;
+          }
+          shelf = String(shelfNum);
+        } else {
+          shelf = null;
+        }
+
+        // 1) usuwamy ze starej lokalizacji
+        sourceArr.splice(productIndex, 1);
+        if (fromLocationId === (selectedItem && selectedItem.dataset.id)) {
+          renderProductsList(fromLocationId);
+        }
+
+        // 2) dodajemy do nowej lokalizacji
+        if (!productsByLocation[targetId]) productsByLocation[targetId] = [];
+        productsByLocation[targetId].push({ ...product, shelf });
+
+        // 3) wybieramy nową lokalizację i odświeżamy
+        pendingMove = null;
+        setSelected(div);
+        renderProductsList(targetId);
+        saveState();
+
+        detailsBody.textContent += "\n\n✅ Produkt został przeniesiony do tej lokalizacji.";
+        return;
+      }
+
+      // Normalne zachowanie – zaznaczenie elementu
       setSelected(div);
     });
+
 
     return div;
   }
@@ -1438,51 +1646,90 @@ PÓŁKI
     return "name:" + n.toLowerCase();
   }
 
-  /* RENDER PRODUKTÓW W LOKALIZACJI */
-  function renderProductsList(locationId) {
-    productsListEl.innerHTML = "";
-    if (!locationId || !productsByLocation[locationId] || productsByLocation[locationId].length === 0) {
-      productsListEl.innerHTML = '<div style="padding:4px 6px;font-size:11px;color:#6b7280;">Brak produktów w tej lokalizacji.</div>';
-      return;
-    }
-    const shelvesCount = selectedItem ? (parseInt(selectedItem.dataset.shelvesCount || "0", 10) || 0) : 0;
+// Rozpoczęcie przenoszenia produktu z danej lokalizacji
+function startMoveProduct(fromLocationId, productIndex) {
+  const arr = productsByLocation[fromLocationId];
+  if (!arr || !arr[productIndex]) {
+    alert("Nie udało się odczytać produktu z tej lokalizacji.");
+    return;
+  }
+  const p = arr[productIndex];
 
-    productsByLocation[locationId].forEach((p, idx) => {
-      const row = document.createElement("div");
-      row.classList.add("product-row");
+  pendingMove = {
+    fromLocationId,
+    productIndex,
+    product: { ...p }
+  };
 
-      const main = document.createElement("div");
-      main.classList.add("product-main");
+  detailsBody.textContent =
+`TRYB PRZENOSZENIA PRODUKTU
 
-      const skuSpan = document.createElement("div");
-      skuSpan.classList.add("product-sku");
-      skuSpan.textContent = p.sku || "(brak SKU)";
+Teraz kliknij docelową lokalizację na mapie, aby przenieść ten produkt.
 
-      const nameSpan = document.createElement("div");
-      nameSpan.classList.add("product-name");
-      nameSpan.textContent = p.name || "";
+SKU: ${p.sku || "-"}
+Nazwa: ${p.name || ""}
 
-      const qtySpan = document.createElement("div");
-      qtySpan.classList.add("product-qty");
-      qtySpan.textContent = "Ilość lokalna: " + (Number(p.qty) || 0);
+Jeśli lokalizacja ma półki, wybierzesz półkę po kliknięciu.
+`;
+}
 
-      main.appendChild(skuSpan);
-      main.appendChild(nameSpan);
-      main.appendChild(qtySpan);
+// Zakończenie przenoszenia (czyszczenie stanu + przywrócenie opisu)
+function cancelMoveAndRestoreDetails() {
+  pendingMove = null;
+  if (selectedItem) {
+    updateDetailsFromItem(selectedItem);
+  } else {
+    detailsBody.textContent =
+"Kliknij element na mapie, aby zobaczyć szczegóły.\n\nMożesz usuwać elementy przyciskiem „Usuń” lub klawiszem Delete.";
+  }
+}
 
-      if (p.shelf) {
-        const shelfSpan = document.createElement("div");
-        shelfSpan.classList.add("product-shelf");
-        const shelfNum = Number(p.shelf);
-        let txt = `Półka: ${shelfNum}`;
-        if (shelvesCount && shelfNum === shelvesCount) {
-          txt += " (nadwyżki)";
-        }
-        shelfSpan.textContent = txt;
-        main.appendChild(shelfSpan);
+/* RENDER PRODUKTÓW W LOKALIZACJI */
+function renderProductsList(locationId) {
+  productsListEl.innerHTML = "";
+  if (!locationId || !productsByLocation[locationId] || productsByLocation[locationId].length === 0) {
+    productsListEl.innerHTML =
+      '<div style="padding:4px 6px;font-size:11px;color:#6b7280;">Brak produktów w tej lokalizacji.</div>';
+    return;
+  }
+  const shelvesCount = selectedItem ? (parseInt(selectedItem.dataset.shelvesCount || "0", 10) || 0) : 0;
+
+  productsByLocation[locationId].forEach((p, idx) => {
+    const row = document.createElement("div");
+    row.classList.add("product-row");
+
+    const main = document.createElement("div");
+    main.classList.add("product-main");
+
+    const skuSpan = document.createElement("div");
+    skuSpan.classList.add("product-sku");
+    skuSpan.textContent = p.sku || "(brak SKU)";
+
+    const nameSpan = document.createElement("div");
+    nameSpan.classList.add("product-name");
+    nameSpan.textContent = p.name || "";
+
+    const qtySpan = document.createElement("div");
+    qtySpan.classList.add("product-qty");
+    qtySpan.textContent = "Ilość lokalna: " + (Number(p.qty) || 0);
+
+    main.appendChild(skuSpan);
+    main.appendChild(nameSpan);
+    main.appendChild(qtySpan);
+
+    if (p.shelf) {
+      const shelfSpan = document.createElement("div");
+      shelfSpan.classList.add("product-shelf");
+      const shelfNum = Number(p.shelf);
+      let txt = `Półka: ${shelfNum}`;
+      if (shelvesCount && shelfNum === shelvesCount) {
+        txt += " (nadwyżki)";
       }
+      shelfSpan.textContent = txt;
+      main.appendChild(shelfSpan);
+    }
 
-const actions = document.createElement("div");
+    const actions = document.createElement("div");
 actions.classList.add("product-actions");
 
 // przycisk ZGŁOŚ BRAK
@@ -1493,24 +1740,58 @@ btnReport.addEventListener("click", () => {
   reportMissingProduct(locationId, p);
 });
 
+// przycisk PRZENIEŚ
+const btnMove = document.createElement("button");
+btnMove.textContent = "Przenieś";
+btnMove.classList.add("move");
+btnMove.addEventListener("click", () => {
+  startMoveProduct(locationId, idx);
+});
+
+  // NOWY: przycisk KOŃCÓWKA
+  const btnLowStock = document.createElement("button");
+  btnLowStock.textContent = "Końcówka";
+  btnLowStock.classList.add("lowstock");
+  btnLowStock.addEventListener("click", () => {
+    reportLowStock(locationId, p);
+  });
+
+
 // przycisk USUŃ
 const btnRemove = document.createElement("button");
 btnRemove.textContent = "Usuń";
+btnRemove.classList.add("remove");
 btnRemove.addEventListener("click", () => {
   productsByLocation[locationId].splice(idx, 1);
   renderProductsList(locationId);
   saveState();
 });
 
-actions.appendChild(btnReport);
-actions.appendChild(btnRemove);
+// --- dwa rzędy przycisków ---
+// 1. rząd: [Przenieś] [Zgłoś brak]
+const actionsTop = document.createElement("div");
+actionsTop.classList.add("product-actions-top");
+actionsTop.appendChild(btnMove);
+actionsTop.appendChild(btnReport);
+
+// 2. rząd: [Końcówka] [Usuń]
+const actionsBottom = document.createElement("div");
+actionsBottom.classList.add("product-actions-bottom");
+actionsBottom.appendChild(btnLowStock);
+actionsBottom.appendChild(btnRemove);
+
+
+
+// całość do kontenera
+actions.appendChild(actionsTop);
+actions.appendChild(actionsBottom);
 
 row.appendChild(main);
 row.appendChild(actions);
 productsListEl.appendChild(row);
+  });
+}
 
-    });
-  }
 
   btnAddProduct.addEventListener("click", () => {
     if (!selectedItem) {
@@ -1554,8 +1835,7 @@ productsListEl.appendChild(row);
     saveState();
   });
 
-// automatyczne zgłoszenie braku towaru przez Google Apps Script
-// automatyczne zgłoszenie braku towaru przez Google Apps Script (Web App)
+// automatyczne zgłoszenie BRAKU towaru przez Google Apps Script (Web App)
 async function reportMissingProduct(locationId, product) {
   if (!MISSING_REPORT_API) {
     alert("Brak skonfigurowanego API do zgłaszania braków (MISSING_REPORT_API).");
@@ -1576,7 +1856,6 @@ async function reportMissingProduct(locationId, product) {
   try {
     const res = await fetch(MISSING_REPORT_API, {
       method: "POST",
-      // 'text/plain' jest "simple request" -> brak preflight, brak problemów z CORS
       headers: {
         "Content-Type": "text/plain;charset=utf-8"
       },
@@ -1588,6 +1867,42 @@ async function reportMissingProduct(locationId, product) {
   } catch (err) {
     console.error("Błąd przy wysyłaniu zgłoszenia braku:", err);
     alert("Nie udało się wysłać zgłoszenia braku. Sprawdź połączenie z internetem lub konfigurację API.");
+  }
+}
+
+// automatyczne zgłoszenie KOŃCÓWKI towaru przez Google Apps Script (Web App)
+async function reportLowStock(locationId, product) {
+  if (!MISSING_REPORT_API) {
+    alert("Brak skonfigurowanego API do zgłaszania końcówki towaru.");
+    return;
+  }
+
+  const payload = {
+    type: "LOW_STOCK",                 // po tym rozróżnisz w Apps Script
+    locationId: locationId,
+    shelf: product.shelf || "-",
+    sku: product.sku || "",
+    name: product.name || "",
+    qty: product.qty,
+    createdBy: "Mapa magazynu – końcówka towaru"
+  };
+
+  console.log("Wysyłam zgłoszenie końcówki:", payload);
+
+  try {
+    const res = await fetch(MISSING_REPORT_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    console.log("Odpowiedź z Apps Script (LOW_STOCK):", res.status);
+    alert("Zgłoszenie końcówki towaru zostało wysłane. 👍");
+  } catch (err) {
+    console.error("Błąd przy wysyłaniu końcówki:", err);
+    alert("Nie udało się wysłać zgłoszenia końcówki. Sprawdź połączenie lub konfigurację API.");
   }
 }
 
@@ -2030,6 +2345,14 @@ function runSearch() {
     console.log("[SYNC] Start nasłuchu Firestore");
     subscribeToCloudLayout();
   });
+
+  document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && pendingMove) {
+    cancelMoveAndRestoreDetails();
+    alert("Przenoszenie anulowane.");
+  }
+});
+
 </script>
 </body>
 </html>
